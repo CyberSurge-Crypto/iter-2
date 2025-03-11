@@ -1,9 +1,9 @@
 # blockchain.py
 from typing import List, Optional, Dict
-from block import Block
-from user import User
-from transaction import Transaction
-from constant import SYSTEM, DIFFICULTY, TransactionState
+from .block import Block
+from .user import User
+from .transaction import Transaction
+from .constant import SYSTEM, DIFFICULTY, TransactionState
 import time
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
