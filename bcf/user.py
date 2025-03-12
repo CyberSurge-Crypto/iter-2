@@ -2,9 +2,9 @@ from typing import Dict, Optional
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization
-from transaction import Transaction
 import hashlib
-from constant import TransactionState
+from bcf.transaction import Transaction
+from bcf.constant import TransactionState
 
 class User:
     _users: Dict[str, 'User'] = {}  # Class variable to store all users
