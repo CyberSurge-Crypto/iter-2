@@ -1,6 +1,6 @@
 import hashlib
-from constant import TransactionState
-from transaction import Transaction
+from bcf.constant import TransactionState
+from bcf.transaction import Transaction
 
 """
 Helper methods for signature and transactions    
