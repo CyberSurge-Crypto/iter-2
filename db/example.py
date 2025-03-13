@@ -3,7 +3,7 @@
 Example usage of the file-based database.
 """
 
-from db import Database
+from core import Database
 
 def main():
     """Example usage of the database."""
