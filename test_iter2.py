@@ -31,7 +31,7 @@ def main():
         tx1 = Transaction(sender=SYSTEM, receiver=user2.get_address(), amount=100)
         peer.blockchain.pending_transactions.append(tx0)
         peer.blockchain.pending_transactions.append(tx1)
-        peer.blockchain.mine_pending_transactions()
+        peer.blockchain.add_block(peer.blockchain.mine_pending_transactions())
         
         # Create sample transactions
         transaction1 = user1.start_transaction(user2.get_address(), 50)
@@ -40,7 +40,7 @@ def main():
         peer.blockchain.pending_transactions.append(transaction2)
 
         # Mine a new block
-        peer.blockchain.mine_pending_transactions()
+        peer.blockchain.add_block(peer.blockchain.mine_pending_transactions())
         
         # Save blockchain to database
         peer.save_blockchain(peer.blockchain)

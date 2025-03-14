@@ -61,16 +61,20 @@ class Blockchain:
         """Comprehensive block validation"""
         # Basic block structure validation
         if block.index != len(self.chain):
+            print("block index is not poassing validation!!")
             return False
             
         if block.previous_hash != self.get_last_block().hash:
+            print("block previous hash is not poassing validation!!")
             return False
             
         if block.compute_hash() != block.hash:
+            print("block hash is not poassing validation!!")
             return False
             
         # Proof-of-Work validation
         if not block.hash.startswith('0'*DIFFICULTY):
+            print(f"block mined with {block.hash} is not poassing validation!!")
             return False
             
         # Transaction validation
@@ -78,8 +82,10 @@ class Blockchain:
             if tx.sender == SYSTEM:
                 continue
             if not self.validate_transaction(tx):
+                print("block transaction is not poassing validation!!")
                 return False
             if tx.state != TransactionState.SIGNED:
+                print("transaction signed is not poassing validation!!")
                 return False
                 
         return True
@@ -142,7 +148,7 @@ class Blockchain:
         user = next((user for user in self.users if user.address == address), None)
         return user.get_public_key() if user else None
 
-    def mine_pending_transactions(self) -> None:
+    def mine_pending_transactions(self) -> Block:
         """Mine all pending transactions into a new block"""
         if not self.pending_transactions:
             return
@@ -155,5 +161,7 @@ class Blockchain:
         )
         
         new_block.mine(DIFFICULTY)
-        self.add_block(new_block)
+        #self.add_block(new_block)
         self.pending_transactions = []
+        
+        return new_block

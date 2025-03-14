@@ -77,7 +77,7 @@ class PeerNode(Node):
                 sender=tx["sender"],
                 receiver=tx["receiver"],
                 amount=tx["amount"],
-                timestamp=tx["timestamp"],
+                timestamp= datetime.fromisoformat(tx["timestamp"]),
                 state=TransactionState(tx["state"]),
                 signature=tx["signature"]
             ) for tx in blockchain_data["pending_transactions"]
@@ -238,37 +238,69 @@ class PeerNode(Node):
 
     def broadcast_transaction(self, txn):
         """Broadcast the transaction to all active nodes."""
-        txn_json = json.dumps(txn)
-        message = json.dumps({"type": "broadcast_transaction", "data": txn_json})
+        message = json.dumps({"type": "broadcast_transaction", "data": txn})
         self.send_to_nodes(message)
         return
     
     def on_broadcast_transaction(self, in_node, txn):
         """Receive the transaction broadcast from another node."""
         self.debug_print(f"on_broadcast_transaction: {str(in_node.id)[:10]} broadcasted a transaction: {txn}.")
-        
         txn_data = Transaction(
                 sender=txn["sender"],
                 receiver=txn["receiver"],
                 amount=txn["amount"],
-                timestamp=txn["timestamp"],
+                timestamp=datetime.fromisoformat(txn["timestamp"]),
                 state=TransactionState(txn["state"]),
                 signature=txn["signature"]
             )
         
-
+        txn_id = txn_data.transaction_id
+        # Check if transaction already exists in pending transactions
+        if any(tx.transaction_id == txn_id for tx in self.blockchain.pending_transactions):
+            print(f"Duplicate transaction {txn_id} ignored.")
+            return
+        
+        self.blockchain.pending_transactions.append(txn_data)
+        self.save_blockchain(self.blockchain)
+        print(f"Added new transaction: {txn_id} into database!")
         return
     
     def broadcast_block(self, block):
         """Broadcast the block to all active nodes."""
-        block_json = json.dumps(block)
-        message = json.dumps({"type": "broadcast_block", "data": block_json})
+        message = json.dumps({"type": "broadcast_block", "data": block})
         self.send_to_nodes(message)
         return
     
     def on_broadcast_block(self, in_node, block):
         """Receive the block broadcast from another node."""
         self.debug_print(f"on_broadcast_block: {str(in_node.id)[:10]} broadcasted a block: {block}.")
+        # Ensure proper conversion from dict to Block object
+        block_data = Block(
+            index=block["index"],
+            transactions=[Transaction(
+                sender=txn["sender"],
+                receiver=txn["receiver"],
+                amount=txn["amount"],
+                timestamp=datetime.fromisoformat(txn["timestamp"]),
+                state=TransactionState(txn["state"]),
+                signature=txn["signature"]
+                ) for txn in block["transactions"]],
+            timestamp=block["timestamp"],
+            previous_hash=block["previous_hash"],
+            nonce=block["nonce"]
+        )
+        if self.blockchain.add_block(block_data):
+            print(f"Added new block: {block_data.index}")
+
+            # Remove transactions that were included in the new block
+            block_transactions = {tx.transaction_id for tx in block_data.transactions}
+            self.blockchain.pending_transactions = [
+                tx for tx in self.blockchain.pending_transactions 
+                if tx.transaction_id not in block_transactions
+            ]
+            
+            self.save_blockchain(self.blockchain)
+        
         return
     
     def fetch_blockchain(self, out_node):
