@@ -14,6 +14,7 @@
 #       the blockchain activity, but only supports p2p connections
 
 from p2pnetwork.node import Node
+import json
 
 class StaticNode(Node):
     def __init__(self, host, port, callback=None, max_connections=999):
@@ -36,7 +37,8 @@ class StaticNode(Node):
 
     def on_register(self, in_node):
         """Send the list of active nodes to the incoming node."""
-        message = "active_nodes:" + str(self.active_nodes)
+        #message = "active_nodes:" + str(self.active_nodes)
+        message = json.dumps({"type": "active_nodes", "data": str(self.active_nodes)})
         self.send_to_node(in_node, message)
         self.active_nodes.add((in_node.host, in_node.port, in_node.id))
         self.debug_print("on_register: " + message)

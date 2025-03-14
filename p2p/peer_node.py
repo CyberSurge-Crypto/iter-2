@@ -3,6 +3,7 @@ from p2pnetwork.node import Node
 from db import Database
 from bcf import Blockchain, Block, Transaction
 from bcf import TransactionState
+from datetime import datetime
 
 class PeerNode(Node):
     def __init__(self, host, port, max_connections=999, callback=None):
@@ -48,42 +49,39 @@ class PeerNode(Node):
         """Convert stored blockchain JSON data back into a Blockchain object."""
         blockchain = Blockchain()
         blockchain.chain = []
-
         # Load confirmed blocks
-        for block_data in blockchain_data[0]["chain"]:
+        for block_data in blockchain_data["chain"]:
             transactions = [
                 Transaction(
                     sender=tx["sender"],
                     receiver=tx["receiver"],
                     amount=tx["amount"],
-                    timestamp=tx["timestamp"],
-                    state=tx["state"],
+                    timestamp = datetime.fromisoformat(tx["timestamp"]),
+                    state=TransactionState(tx["state"]),
                     signature=tx["signature"]
                 ) for tx in block_data["transactions"]
             ]
 
             block = Block(
-                index=block_data["index"],
+                index=int(block_data["index"]),
                 transactions=transactions,
                 timestamp=block_data["timestamp"],
                 previous_hash=block_data["previous_hash"],
                 nonce=block_data["nonce"]
             )
-            block.hash = block_data["hash"]  # Restore block hash
+            block.hash = block_data["hash"]
             blockchain.chain.append(block)
-
         # Load pending transactions
         blockchain.pending_transactions = [
             Transaction(
                 sender=tx["sender"],
-                    receiver=tx["receiver"],
-                    amount=tx["amount"],
-                    timestamp=tx["timestamp"],
-                    state=tx["state"],
-                    signature=tx["signature"]
-            ) for tx in blockchain_data[0]["pending_transactions"]
+                receiver=tx["receiver"],
+                amount=tx["amount"],
+                timestamp=tx["timestamp"],
+                state=TransactionState(tx["state"]),
+                signature=tx["signature"]
+            ) for tx in blockchain_data["pending_transactions"]
         ]
-
         return blockchain
 
     
@@ -96,11 +94,11 @@ class PeerNode(Node):
                     "transactions": [
                         {
                             "transaction_id": tx.transaction_id,
-                            "timestamp": tx.timestamp.isoformat(),  # Convert datetime to string
+                            "timestamp": tx.timestamp.isoformat(),
                             "sender": tx.sender,
                             "receiver": tx.receiver,
                             "amount": tx.amount,
-                            "state": tx.state.value,  # Convert enum to string
+                            "state": tx.state.value,
                             "signature": tx.signature
                         } for tx in block.transactions
                     ],
@@ -241,18 +239,31 @@ class PeerNode(Node):
     def broadcast_transaction(self, txn):
         """Broadcast the transaction to all active nodes."""
         txn_json = json.dumps(txn)
-        self.send_to_nodes("broadcast_transaction:" + txn_json)
+        message = json.dumps({"type": "broadcast_transaction", "data": txn_json})
+        self.send_to_nodes(message)
         return
     
     def on_broadcast_transaction(self, in_node, txn):
         """Receive the transaction broadcast from another node."""
         self.debug_print(f"on_broadcast_transaction: {str(in_node.id)[:10]} broadcasted a transaction: {txn}.")
+        
+        txn_data = Transaction(
+                sender=txn["sender"],
+                receiver=txn["receiver"],
+                amount=txn["amount"],
+                timestamp=txn["timestamp"],
+                state=TransactionState(txn["state"]),
+                signature=txn["signature"]
+            )
+        
+
         return
     
     def broadcast_block(self, block):
         """Broadcast the block to all active nodes."""
         block_json = json.dumps(block)
-        self.send_to_nodes("broadcast_block:" + block_json)
+        message = json.dumps({"type": "broadcast_block", "data": block_json})
+        self.send_to_nodes(message)
         return
     
     def on_broadcast_block(self, in_node, block):
@@ -263,8 +274,8 @@ class PeerNode(Node):
     def fetch_blockchain(self, out_node):
         """Fetch the blockchain from an active node (if exists)."""
         try:
-            fetch_message = "fetch_blockchain:" + self.id
-            self.send_to_node(out_node, fetch_message)
+            message = json.dumps({"type": "fetch_blockchain", "data": self.id})
+            self.send_to_node(out_node, message)
         except Exception as e:
             self.debug_print(f"fetch_blockchain: Error fetching blockchain: {str(e)}")
         return
@@ -283,11 +294,11 @@ class PeerNode(Node):
                             "transactions": [
                                 {
                                     "transaction_id": tx.transaction_id,
-                                    "timestamp": tx.timestamp.isoformat(),  # Convert datetime to string
+                                    "timestamp": tx.timestamp.isoformat(),
                                     "sender": tx.sender,
                                     "receiver": tx.receiver,
                                     "amount": tx.amount,
-                                    "state": tx.state.value,  # Convert enum to string
+                                    "state": tx.state.value,
                                     "signature": tx.signature
                                 } for tx in block.transactions
                             ],
@@ -314,8 +325,10 @@ class PeerNode(Node):
                 blockchain_json = json.dumps(blockchain_data)
 
                 # Send blockchain data to the requesting node
-                self.send_to_node(in_node, "receive_blockchain:" + blockchain_json)
-
+                message = json.dumps({"type": "receive_blockchain", "data": blockchain_json})
+                self.send_to_node(in_node, message)
+                
+                self.debug_print(f"on_fetch_blockchain: blockchain sent!.")
             except Exception as e:
                 self.debug_print(f"on_fetch_blockchain: Error serializing blockchain: {str(e)}")
 
@@ -330,10 +343,11 @@ class PeerNode(Node):
         try:
             # Deserialize received blockchain data
             received_blockchain_data = json.loads(content)
-
             # Convert received data into a Blockchain object
-            received_blockchain = self.convert_to_blockchain([received_blockchain_data])
-
+            received_blockchain = self.convert_to_blockchain(received_blockchain_data)
+            
+            # Update blockchain attribute
+            self.blockchain = received_blockchain
             # Compare blockchain lengths
             local_chain_length = len(self.blockchain.chain) if self.blockchain else 0
             received_chain_length = len(received_blockchain.chain)
@@ -355,8 +369,7 @@ class PeerNode(Node):
         
     def on_node_message(self, in_node, data):
         try:
-            prompt = data.split(":")[0]
-            content = data.split(":")[1]
+            prompt, content = data["type"], data["data"]
 
             if prompt == "active_nodes":
                 self.on_active_nodes(in_node, content)
