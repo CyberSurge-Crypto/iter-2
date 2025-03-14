@@ -31,3 +31,14 @@ class Block:
         while not self.hash.startswith(target):
             self.nonce += 1
             self.hash = self.compute_hash()
+
+    def to_dict(self) -> dict:
+        return {
+            "index": self.index,
+            "transactions": [tx.to_dict() for tx in self.transactions],
+            "timestamp": self.timestamp,
+            "previous_hash": self.previous_hash,
+            "nonce": self.nonce,
+            "hash": self.hash
+        }
+    

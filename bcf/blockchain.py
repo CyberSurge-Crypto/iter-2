@@ -11,12 +11,12 @@ from cryptography.hazmat.primitives.asymmetric import padding
 class Blockchain:
     def __init__(self):
         self.chain: List[Block] = []
-        self.user_registry: Dict[str, User] = {}
+        # self.user_registry: Dict[str, User] = {}
         # mempool of pending transactions
         self.pending_transactions: List[Transaction] = []
 
-        # make sure there is at least one block in the chain
-        self.create_genesis_block()
+        # # make sure there is at least one block in the chain
+        # self.create_genesis_block()
 
     def create_genesis_block(self) -> None:
         """Create the genesis block of the blockchain"""
@@ -24,10 +24,10 @@ class Blockchain:
         genesis_block = Block(0, [genesis_transaction], time.time(), "0")
         self.chain.append(genesis_block)
 
-    def register_user(self, user: User) -> None:
-        """Register a new user in the blockchain"""
-        self.pending_transactions.append(Transaction(SYSTEM, user.address, 100))
-        self.user_registry[user.address] = user
+    # def register_user(self, user: User) -> None:
+    #     """Register a new user in the blockchain"""
+    #     self.pending_transactions.append(Transaction(SYSTEM, user.address, 100))
+    #     self.user_registry[user.address] = user
 
     def get_balance(self, address: str) -> int:
         """Get the balance of a user by their address"""
@@ -47,6 +47,7 @@ class Blockchain:
     def add_block(self, block: Block) -> bool:
         """Validate and add a new block to the chain"""
         if not self.validate_block(block):
+            print(f"Block{block.index} is not passing validation!!!")
             return False
             
         # Update transaction states
@@ -88,14 +89,14 @@ class Blockchain:
     """
     def verify_transaction_signature(self, tx: Transaction) -> bool:
         """Cryptographic signature verification"""
-        if tx.sender not in self.user_registry:
-            return False
+        # if tx.sender not in self.user_registry:
+        #     return False
             
         try:
-            public_key = self.user_registry[tx.sender]._public_key
+            # public_key = self.user_registry[tx.sender]._public_key
             message = f"{tx.sender}{tx.receiver}{tx.amount}{tx.timestamp}"
             
-            public_key.verify(
+            tx.sender.verify(
                 bytes.fromhex(tx.signature),
                 message.encode(),
                 padding.PSS(
@@ -117,8 +118,8 @@ class Blockchain:
         if (transaction.sender == SYSTEM):
             return True
         
-        if not self.verify_transaction_signature(transaction):
-            return False
+        # if not self.verify_transaction_signature(transaction):
+        #     return False
 
         sender_balance = self.get_balance(transaction.sender)
         pending_spent = sum(

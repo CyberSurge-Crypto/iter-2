@@ -3,17 +3,20 @@ from datetime import datetime
 import hashlib
 
 class Transaction:
-    def __init__(self, sender: str, receiver: str, amount: int) -> None:
-        self.timestamp = datetime.now()
-        self.transaction_id = hashlib.sha256(f"{sender}{receiver}{amount}{self.timestamp}".encode()).hexdigest()
+    def __init__(self, sender: str, receiver: str, amount: int, timestamp = datetime.now(), state = TransactionState.STARTED, signature = None ) -> None:
+        self.timestamp = timestamp
         self.sender = sender
         self.receiver = receiver
         self.amount = amount
-        self.state = TransactionState.STARTED
-        self.signature = None
+        self.state = state
+        self.signature = signature
+        self.transaction_id = self.get_id()
 
     def __str__(self) -> str:
-        return str(str(self.transaction_id)) + " " + str(self.timestamp) + " " + str(self.sender) + " " + str(self.receiver) + " " + str(self.amount) + " " + str(self.state)
+        return str(self.transaction_id) + " " + str(self.timestamp) + " " + str(self.sender) + " " + str(self.receiver) + " " + str(self.amount) + " " + str(self.state)
+    
+    def get_id(self):
+        return hashlib.sha256(f"{self.sender}{self.receiver}{self.amount}{self.timestamp}".encode()).hexdigest()
     
     def to_dict(self) -> dict:
         return {

@@ -1,8 +1,8 @@
 import random
 from time import sleep
-from peer_node import PeerNode
-from static_node import StaticNode
-from utils import STATIC_NODE_IP, STATIC_NODE_PORT, node_callback
+from .peer_node import PeerNode
+from .static_node import StaticNode
+from .utils import STATIC_NODE_IP, STATIC_NODE_PORT, node_callback
 
 
 if __name__ == "__main__":
