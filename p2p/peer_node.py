@@ -196,6 +196,10 @@ class PeerNode(Node):
                 target_node = self.nodes_outbound[1]
                 print(f"Node {self.id} is fetching blockchain!")
                 self.fetch_blockchain(target_node)
+                # TODO: Should fetch blockchain from all nodes?
+                # TODO: Should we fetch every time we connect to peers?
+                
+            
 
     """ ------------------------------------------------------------------------------- """
     """ Interaction with the static node.                                               """
@@ -370,25 +374,19 @@ class PeerNode(Node):
     
     def on_receive_blockchain(self, in_node, content):
         """Receive the blockchain from another node and compare it with the local one."""
-        self.debug_print(f"on_receive_blockchain: {str(in_node.id)[:10]} sent the blockchain.")
-
+        self.debug_print(f"on_receive_blockchain: {str(self.id)[:10]} received the blockchain.")
         try:
             # Deserialize received blockchain data
             received_blockchain_data = json.loads(content)
             # Convert received data into a Blockchain object
             received_blockchain = self.convert_to_blockchain(received_blockchain_data)
             
-            # Update blockchain attribute
-            self.blockchain = received_blockchain
             # Compare blockchain lengths
             local_chain_length = len(self.blockchain.chain) if self.blockchain else 0
             received_chain_length = len(received_blockchain.chain)
-
-            self.debug_print(f"Local blockchain length: {local_chain_length}, Received blockchain length: {received_chain_length}")
-
+            
             # Keep the longer blockchain
             if received_chain_length > local_chain_length:
-                self.debug_print("Received blockchain is longer. Replacing local blockchain.")
                 self.blockchain = received_blockchain
                 self.save_blockchain(self.blockchain)  # Store new blockchain in the database
                 print("Local blockchain updated with a longer chain from peer.")

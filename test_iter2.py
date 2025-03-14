@@ -1,5 +1,5 @@
 import time
-import random
+import random, copy
 from p2p import StaticNode
 from p2p import PeerNode
 from p2p import STATIC_NODE_IP, STATIC_NODE_PORT, node_callback
@@ -17,30 +17,33 @@ def main():
     user1 = User()
     user2 = User()
     
+    # blockchain database makeup
+    bc_data = Blockchain()
+    bc_data.create_genesis_block()
+    
+    # Give users initial balances
+    tx0 = Transaction(sender=SYSTEM, receiver=user1.get_address(), amount=100)
+    tx1 = Transaction(sender=SYSTEM, receiver=user2.get_address(), amount=100)
+    bc_data.pending_transactions.append(tx0)
+    bc_data.pending_transactions.append(tx1)
+    bc_data.add_block(bc_data.mine_pending_transactions())
+    
+    # Create sample transactions
+    transaction1 = user1.start_transaction(user2.get_address(), 50)
+    transaction2 = user2.start_transaction(user1.get_address(), 30)
+    bc_data.pending_transactions.append(transaction1)
+    bc_data.pending_transactions.append(transaction2)
+
+    # Mine a new block
+    bc_data.add_block(bc_data.mine_pending_transactions())
+    
     # Step 2: Start 3 peer nodes
     peer_nodes = []
     for i in range(3):
         peer = PeerNode("localhost", random.randint(8000, 9000), 
                         max_connections=999, callback=node_callback)
         
-        peer.blockchain = Blockchain()
-        peer.blockchain.create_genesis_block()
-
-        # Give users initial balances
-        tx0 = Transaction(sender=SYSTEM, receiver=user1.get_address(), amount=100)
-        tx1 = Transaction(sender=SYSTEM, receiver=user2.get_address(), amount=100)
-        peer.blockchain.pending_transactions.append(tx0)
-        peer.blockchain.pending_transactions.append(tx1)
-        peer.blockchain.add_block(peer.blockchain.mine_pending_transactions())
-        
-        # Create sample transactions
-        transaction1 = user1.start_transaction(user2.get_address(), 50)
-        transaction2 = user2.start_transaction(user1.get_address(), 30)
-        peer.blockchain.pending_transactions.append(transaction1)
-        peer.blockchain.pending_transactions.append(transaction2)
-
-        # Mine a new block
-        peer.blockchain.add_block(peer.blockchain.mine_pending_transactions())
+        peer.blockchain = copy.deepcopy(bc_data)
         
         # Save blockchain to database
         peer.save_blockchain(peer.blockchain)
@@ -63,24 +66,26 @@ def main():
     # Step 4: Simulate a transaction broadcast
     sender_node = peer_nodes[0]
     transaction = user1.start_transaction(user2.get_address(), 5)
+    sender_node.blockchain.pending_transactions.append(transaction)
+    sender_node.save_blockchain(sender_node.blockchain)
     sender_node.broadcast_transaction(transaction.to_dict())
 
     print("=== Transaction broadcasted from Node 1! ===")
 
-    time.sleep(1)
+    time.sleep(2)
 
     # Step 5: Simulate mining a block on Node 2
     miner_node = peer_nodes[1]
-    miner_node.blockchain.mine_pending_transactions()
+    new_block = miner_node.blockchain.mine_pending_transactions()
+    if miner_node.blockchain.add_block(new_block):
+        print(f"=== Node 2 mined a new block: {new_block.index} ===")
+        print("=== Block broadcasted from Node 2! ===")
+        # Step 6: Broadcast the new block
+        miner_node.broadcast_block(new_block.to_dict())
+        # Update local data
+        miner_node.save_blockchain(miner_node.blockchain)
 
-    new_block = miner_node.blockchain.get_last_block()
-    print(f"=== Node 2 mined a new block: {new_block.index} ===")
-
-    # Step 6: Broadcast the new block
-    miner_node.broadcast_block(new_block.to_dict())
-    print("=== Block broadcasted from Node 2! ===")
-
-    time.sleep(1)
+    time.sleep(2)
 
     # Step 7: Simulate a new node connecting and fetching the blockchain
     print("=== Simulating a new node joining the network... ===")
@@ -94,11 +99,11 @@ def main():
     new_peer.register()  # Register new peer to static node
     time.sleep(1)
 
-    # Find an existing peer to request blockchain data
+    # # Find an existing peer to request blockchain data
     existing_peer = peer_nodes[0]  
     new_peer.fetch_blockchain(existing_peer)
 
-    time.sleep(1)  # Allow time for blockchain to sync
+    time.sleep(4)  # Allow time for blockchain to sync
 
 
     # Step 9: Shut down the network

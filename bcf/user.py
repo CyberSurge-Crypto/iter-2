@@ -4,6 +4,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization
 from .transaction import Transaction
 import hashlib
+import base58
 from .constant import TransactionState
 
 class User:
@@ -27,13 +28,27 @@ class User:
         # Add user to class variable
         User._users[self.address] = self
 
+    # def _generate_address(self, public_key_bytes: bytes) -> str:
+    #     """Generate an address from public key"""
+    #     sha256_hash = hashlib.sha256(public_key_bytes).digest()
+    #     ripemd160_hash = hashlib.new('ripemd160', sha256_hash).digest()
+    #     # Return last 40 chars of hex string
+    #     return '0x' + ripemd160_hash.hex()[:40]
+    
     def _generate_address(self, public_key_bytes: bytes) -> str:
-        """Generate an address from public key"""
-        sha256_hash = hashlib.sha256(public_key_bytes).digest()
-        ripemd160_hash = hashlib.new('ripemd160', sha256_hash).digest()
-        # Return last 40 chars of hex string
-        return '0x' + ripemd160_hash.hex()[:40]
+        """Encode public key into Base58 address"""
+        return base58.b58encode(public_key_bytes).decode()
 
+    @staticmethod
+    def get_public_key_from_address(address: str):
+        """Retrieve public key from Base58-encoded address"""
+        try:
+            public_key_bytes = base58.b58decode(address)
+            return serialization.load_pem_public_key(public_key_bytes)
+        except Exception as e:
+            print("Invalid address:", e)
+            return None
+    
     def get_address(self) -> str:
         """Return the user's address"""
         return self.address

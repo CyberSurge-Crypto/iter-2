@@ -50,9 +50,9 @@ class Blockchain:
             print(f"Block{block.index} is not passing validation!!!")
             return False
             
-        # Update transaction states
-        for tx in block.transactions:
-            tx.state = TransactionState.FULLY_CONFIRMED
+        # # Update transaction states
+        # for tx in block.transactions:
+        #     tx.state = TransactionState.FULLY_CONFIRMED
             
         self.chain.append(block)
         return True
@@ -61,7 +61,7 @@ class Blockchain:
         """Comprehensive block validation"""
         # Basic block structure validation
         if block.index != len(self.chain):
-            print("block index is not poassing validation!!")
+            print(f"block index is not poassing validation!! {block.index} vs {len(self.chain)}")
             return False
             
         if block.previous_hash != self.get_last_block().hash:
@@ -102,7 +102,7 @@ class Blockchain:
             # public_key = self.user_registry[tx.sender]._public_key
             message = f"{tx.sender}{tx.receiver}{tx.amount}{tx.timestamp}"
             
-            tx.sender.verify(
+            User.get_public_key_from_address(tx.sender).verify(
                 bytes.fromhex(tx.signature),
                 message.encode(),
                 padding.PSS(
@@ -124,8 +124,8 @@ class Blockchain:
         if (transaction.sender == SYSTEM):
             return True
         
-        # if not self.verify_transaction_signature(transaction):
-        #     return False
+        if not self.verify_transaction_signature(transaction):
+            return False
 
         sender_balance = self.get_balance(transaction.sender)
         pending_spent = sum(
